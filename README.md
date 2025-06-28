@@ -12,3 +12,16 @@ A simple Vue.js-powered countdown timer that reads upcoming alarms from a CSV fi
 - 🌐 Easily hosted with GitHub Pages, Python, or Node.js
 
 ## 📂 File Structure
+
+## ✅ How to Run
+
+1. Clone or download this repo.
+2. Open the folder in VS Code.
+3. Use Live Server OR run a local server:
+
+   ```bash
+   # Python
+   python -m http.server
+
+   # OR with Node.js
+   http-server
