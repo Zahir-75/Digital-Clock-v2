@@ -1,16 +1,61 @@
-// Helper to fetch and parse CSV
+// Helper to fetch and parse the new alarms.csv format
 async function fetchAlarms() {
-    fetch('alarms.csv')
-      .then(response => response.text())
-      .then(text => {
-    const rows = text.trim().split('\n');
-    const header = rows[0].split(',');
-    const data = rows.slice(1).map(row => row.split(','));
-    // Now, data[i] = [Date, Day, Alarm1, ..., Alarm8]
-    // You can access alarms as data[i][2]...data[i][9]
-  });
+    const resp = await fetch('alarms.csv');
+    const text = await resp.text();
+    const lines = text.trim().split('\n');
+    if (lines.length < 2) return []; // No data
 
-// Digital clock
+    // Parse new header
+    const header = lines[0].split(',').map(h => h.trim());
+    const dateIdx = header.indexOf('Date');
+    const dayIdx = header.indexOf('Day');
+    const alarmStartIdx = 2; // Alarm1 is at index 2
+
+    // Map each row to an object for that day with alarm times
+    return lines.slice(1).map(line => {
+        const cols = line.split(',').map(col => col.trim());
+        // Collect only non-empty alarm times
+        const alarms = [];
+        for (let i = alarmStartIdx; i < header.length; i++) {
+            if (cols[i]) {
+                // Create a Date object for today with this alarm time
+                // Parse date string DD-MMM-YYYY or DD/MM/YYYY or similar
+                let dateStr = cols[dateIdx];
+                let timeStr = cols[i];
+                // Adjust for different date formats
+                let dateParts;
+                if (dateStr.includes('-')) {
+                    // e.g., 29-June-2025 or 29-Jun-2025
+                    dateParts = dateStr.split('-');
+                } else if (dateStr.includes('/')) {
+                    // e.g., 29/06/2025
+                    dateParts = dateStr.split('/');
+                } else {
+                    dateParts = [ "", "", "" ];
+                }
+                let day = Number(dateParts[0]);
+                let month = isNaN(Number(dateParts[1])) ? 
+                    (new Date(Date.parse(dateParts[1] +" 1, 2012")).getMonth()) : 
+                    (Number(dateParts[1])-1);
+                let year = Number(dateParts[2]);
+                let [hh, mm] = timeStr.split(':');
+                let alarmDate = new Date(year, month, day, Number(hh), Number(mm));
+                alarms.push({
+                    date: alarmDate,
+                    label: `Alarm at ${timeStr}`,
+                    originalRow: cols
+                });
+            }
+        }
+        return {
+            date: cols[dateIdx],
+            day: cols[dayIdx],
+            alarms: alarms
+        };
+    });
+}
+
+// Digital clock (unchanged)
 function updateDigitalClock() {
     const now = new Date();
     const pad = n => n.toString().padStart(2, '0');
@@ -18,7 +63,7 @@ function updateDigitalClock() {
         `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
 }
 
-// Analog clock
+// Analog clock (unchanged)
 function drawAnalogClock() {
     const canvas = document.getElementById('analogClock');
     const ctx = canvas.getContext('2d');
@@ -95,34 +140,49 @@ function drawAnalogClock() {
     ctx.restore();
 }
 
-// Countdown for each alarm
-function renderAlarms(alarms) {
+// Render alarms for today
+function renderAlarms(alarmsByDay) {
     const now = new Date();
+    // Find today's entry
+    let todayObj = alarmsByDay.find(row => {
+        // Parse row.date into comparable Date object
+        let dateStr = row.date;
+        let dateParts;
+        if (dateStr.includes('-')) {
+            dateParts = dateStr.split('-');
+        } else if (dateStr.includes('/')) {
+            dateParts = dateStr.split('/');
+        } else {
+            dateParts = ["", "", ""];
+        }
+        let day = Number(dateParts[0]);
+        let month = isNaN(Number(dateParts[1])) ? 
+            (new Date(Date.parse(dateParts[1] +" 1, 2012")).getMonth()) : 
+            (Number(dateParts[1])-1);
+        let year = Number(dateParts[2]);
+        return now.getFullYear() === year && now.getMonth() === month && now.getDate() === day;
+    });
 
-    // Get today's date boundaries
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const tomorrow = new Date(today);
-    tomorrow.setDate(today.getDate() + 1);
+    const container = document.getElementById('alarmsList');
+    container.innerHTML = '';
 
-    // Filter alarms for today only
-    const todaysAlarms = alarms.filter(a =>
-        a.time >= today && a.time < tomorrow
-    ).slice(0, 6);
+    if (!todayObj || !todayObj.alarms.length) {
+        container.innerHTML = '<div class="alarm-row">No alarms scheduled for today.</div>';
+        return;
+    }
 
-    // Find the next upcoming alarm (for today)
+    // Find the next upcoming alarm
     let soonestIdx = -1, soonestDiff = Infinity;
-    todaysAlarms.forEach((a, idx) => {
-        const diff = a.time - now;
+    todayObj.alarms.forEach((a, idx) => {
+        const diff = a.date - now;
         if (diff > 0 && diff < soonestDiff) {
             soonestDiff = diff;
             soonestIdx = idx;
         }
     });
 
-    const container = document.getElementById('alarmsList');
-    container.innerHTML = '';
-    todaysAlarms.forEach((alarm, idx) => {
-        const diff = alarm.time - now;
+    todayObj.alarms.forEach((alarm, idx) => {
+        const diff = alarm.date - now;
         let countdown = '';
         if (diff > 0) {
             const hours = Math.floor(diff / 3600000);
@@ -134,18 +194,12 @@ function renderAlarms(alarms) {
         }
         const row = document.createElement('div');
         row.className = 'alarm-row' + (idx === soonestIdx ? ' gold' : '');
-        row.innerHTML = `<span>${alarm.label}</span><span>${alarm.time.toLocaleTimeString()}<br><small>${countdown}</small></span>`;
+        row.innerHTML = `<span>${alarm.label}</span><span>${alarm.date.toLocaleTimeString()}<br><small>${countdown}</small></span>`;
         container.appendChild(row);
     });
-
-    // If no alarms for today, show a message
-    if (todaysAlarms.length === 0) {
-        container.innerHTML = '<div class="alarm-row">No alarms scheduled for today.</div>';
-    }
 }
 
-
-// Carousel
+// Carousel (unchanged)
 const imageFolder = 'msgImges/';
 const images = [
     'img1.jpg',
@@ -171,7 +225,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
     showCarouselImage();
 });
 
-// Bottom message
+// Bottom message (unchanged)
 document.addEventListener('DOMContentLoaded', ()=>{
     document.getElementById('bottomMessage').textContent = getRandomMessage();
 });
