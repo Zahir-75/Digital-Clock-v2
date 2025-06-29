@@ -112,8 +112,8 @@ function renderAlarms(alarmsByDay) {
         return;
     }
 
-    // Only take the first 7 alarms
-    const alarms = todayObj.times.slice(0, 7).map((timeStr, idx) => {
+    // Only take the first 11 alarms
+    const alarms = todayObj.times.slice(0, 10).map((timeStr, idx) => {
         const [hh, mm] = timeStr.split(':');
         return {
             time: timeStr,
@@ -147,7 +147,7 @@ function renderAlarms(alarmsByDay) {
         }
     });
 
-    // Layout: [0|1], [2], [3|4], [5|6]
+    // Layout: [0|1], [2], [3|4], [5|6], [7|8],[9|10]
     let html = '';
     // First line: Alarm1 | Alarm2
     if (alarms[0] || alarms[1]) {
@@ -176,7 +176,23 @@ function renderAlarms(alarmsByDay) {
         if (alarms[6]) html += " &nbsp;|&nbsp; " + alarmHtml(alarms[6]);
         html += '</div>';
     }
+    
+    // Fifth line: Alarm8 | Alarm9
+    if (alarms[7] || alarms[8]) {
+        html += `<div class="alarm-row${soonestIdx === 7 || soonestIdx === 8 ? ' gold' : ''}">`;
+        if (alarms[7]) html += alarmHtml(alarms[7]);
+        if (alarms[8]) html += " &nbsp;|&nbsp; " + alarmHtml(alarms[8]);
+        html += '</div>';
+    }
 
+    // Sixth line: Alarm9 | Alarm10
+    if (alarms[9] || alarms[10]) {
+        html += `<div class="alarm-row${soonestIdx === 9 || soonestIdx === 10 ? ' gold' : ''}">`;
+        if (alarms[9]) html += alarmHtml(alarms[9]);
+        if (alarms[10]) html += " &nbsp;|&nbsp; " + alarmHtml(alarms[10]);
+        html += '</div>';
+    }
+    
     container.innerHTML = html;
 }
 
