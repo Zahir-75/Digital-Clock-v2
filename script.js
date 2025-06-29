@@ -6,14 +6,13 @@ async function fetchAlarms() {
     if (lines.length < 2) return [];
 
     // Parse header
-    const header = lines[0].split(',').map(h => h.trim());
-    // ["Date", "Day", "Alarm1", "Alarm2", ...]
+    // ["Date", "Day", "Alarm1", ...]
     return lines.slice(1).map(line => {
         const cols = line.split(',').map(col => col.trim());
         return {
-            date: cols[0], // e.g. 29-June-2025
-            day: cols[1],
-            times: cols.slice(2).filter(t => t)
+            date: cols[0], // "29-June-2025"
+            day: cols[1],  // "Sunday"
+            times: cols.slice(2).filter(Boolean) // ["04:00", "10:00", ...]
         };
     });
 }
@@ -35,7 +34,6 @@ function drawAnalogClock() {
     const w = canvas.width, h = canvas.height;
     ctx.clearRect(0, 0, w, h);
 
-    // Draw clock face
     ctx.save();
     ctx.translate(w/2, h/2);
     ctx.beginPath();
@@ -46,7 +44,6 @@ function drawAnalogClock() {
     ctx.lineWidth = 3;
     ctx.stroke();
 
-    // Hour marks
     for(let i=0;i<12;i++){
         ctx.save();
         ctx.rotate(i*Math.PI/6);
@@ -59,11 +56,10 @@ function drawAnalogClock() {
         ctx.restore();
     }
 
-    // Hands
     const hr = now.getHours()%12 + now.getMinutes()/60;
     const min = now.getMinutes() + now.getSeconds()/60;
     const sec = now.getSeconds();
-    // Hour
+
     ctx.save();
     ctx.rotate(hr*Math.PI/6);
     ctx.beginPath();
@@ -74,7 +70,7 @@ function drawAnalogClock() {
     ctx.lineCap = 'round';
     ctx.stroke();
     ctx.restore();
-    // Minute
+
     ctx.save();
     ctx.rotate(min*Math.PI/30);
     ctx.beginPath();
@@ -84,7 +80,7 @@ function drawAnalogClock() {
     ctx.lineWidth = 3.2;
     ctx.stroke();
     ctx.restore();
-    // Second
+
     ctx.save();
     ctx.rotate(sec*Math.PI/30);
     ctx.beginPath();
@@ -95,7 +91,6 @@ function drawAnalogClock() {
     ctx.stroke();
     ctx.restore();
 
-    // Center dot
     ctx.beginPath();
     ctx.arc(0,0,4,0,2*Math.PI);
     ctx.fillStyle = '#b84636';
@@ -107,8 +102,10 @@ function drawAnalogClock() {
 // Render alarms for today
 function renderAlarms(alarmsByDay) {
     const now = new Date();
-    // Format today's date as in the CSV (e.g. "29-June-2025")
-    const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+    const months = [
+        "January","February","March","April","May","June","July",
+        "August","September","October","November","December"
+    ];
     const todayString = `${now.getDate().toString().padStart(2, '0')}-${months[now.getMonth()]}-${now.getFullYear()}`;
     const todayObj = alarmsByDay.find(row => row.date === todayString);
 
@@ -154,8 +151,7 @@ function renderAlarms(alarmsByDay) {
     });
 }
 
-// Carousel and message setup unchanged
-
+// Carousel and messages are unchanged
 const imageFolder = 'msgImges/';
 const images = [
     'img1.jpg',
