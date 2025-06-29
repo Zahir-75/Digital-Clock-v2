@@ -3,59 +3,22 @@ async function fetchAlarms() {
     const resp = await fetch('alarms.csv');
     const text = await resp.text();
     const lines = text.trim().split('\n');
-    if (lines.length < 2) return []; // No data
+    if (lines.length < 2) return [];
 
-    // Parse new header
+    // Parse header
     const header = lines[0].split(',').map(h => h.trim());
-    const dateIdx = header.indexOf('Date');
-    const dayIdx = header.indexOf('Day');
-    const alarmStartIdx = 2; // Alarm1 is at index 2
-
-    // Map each row to an object for that day with alarm times
+    // ["Date", "Day", "Alarm1", "Alarm2", ...]
     return lines.slice(1).map(line => {
         const cols = line.split(',').map(col => col.trim());
-        // Collect only non-empty alarm times
-        const alarms = [];
-        for (let i = alarmStartIdx; i < header.length; i++) {
-            if (cols[i]) {
-                // Create a Date object for today with this alarm time
-                // Parse date string DD-MMM-YYYY or DD/MM/YYYY or similar
-                let dateStr = cols[dateIdx];
-                let timeStr = cols[i];
-                // Adjust for different date formats
-                let dateParts;
-                if (dateStr.includes('-')) {
-                    // e.g., 29-June-2025 or 29-Jun-2025
-                    dateParts = dateStr.split('-');
-                } else if (dateStr.includes('/')) {
-                    // e.g., 29/06/2025
-                    dateParts = dateStr.split('/');
-                } else {
-                    dateParts = [ "", "", "" ];
-                }
-                let day = Number(dateParts[0]);
-                let month = isNaN(Number(dateParts[1])) ? 
-                    (new Date(Date.parse(dateParts[1] +" 1, 2012")).getMonth()) : 
-                    (Number(dateParts[1])-1);
-                let year = Number(dateParts[2]);
-                let [hh, mm] = timeStr.split(':');
-                let alarmDate = new Date(year, month, day, Number(hh), Number(mm));
-                alarms.push({
-                    date: alarmDate,
-                    label: `Alarm at ${timeStr}`,
-                    originalRow: cols
-                });
-            }
-        }
         return {
-            date: cols[dateIdx],
-            day: cols[dayIdx],
-            alarms: alarms
+            date: cols[0], // e.g. 29-June-2025
+            day: cols[1],
+            times: cols.slice(2).filter(t => t)
         };
     });
 }
 
-// Digital clock (unchanged)
+// Digital clock
 function updateDigitalClock() {
     const now = new Date();
     const pad = n => n.toString().padStart(2, '0');
@@ -63,9 +26,10 @@ function updateDigitalClock() {
         `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
 }
 
-// Analog clock (unchanged)
+// Analog clock
 function drawAnalogClock() {
     const canvas = document.getElementById('analogClock');
+    if (!canvas) return;
     const ctx = canvas.getContext('2d');
     const now = new Date();
     const w = canvas.width, h = canvas.height;
@@ -143,46 +107,37 @@ function drawAnalogClock() {
 // Render alarms for today
 function renderAlarms(alarmsByDay) {
     const now = new Date();
-    // Find today's entry
-    let todayObj = alarmsByDay.find(row => {
-        // Parse row.date into comparable Date object
-        let dateStr = row.date;
-        let dateParts;
-        if (dateStr.includes('-')) {
-            dateParts = dateStr.split('-');
-        } else if (dateStr.includes('/')) {
-            dateParts = dateStr.split('/');
-        } else {
-            dateParts = ["", "", ""];
-        }
-        let day = Number(dateParts[0]);
-        let month = isNaN(Number(dateParts[1])) ? 
-            (new Date(Date.parse(dateParts[1] +" 1, 2012")).getMonth()) : 
-            (Number(dateParts[1])-1);
-        let year = Number(dateParts[2]);
-        return now.getFullYear() === year && now.getMonth() === month && now.getDate() === day;
-    });
+    // Format today's date as in the CSV (e.g. "29-June-2025")
+    const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+    const todayString = `${now.getDate().toString().padStart(2, '0')}-${months[now.getMonth()]}-${now.getFullYear()}`;
+    const todayObj = alarmsByDay.find(row => row.date === todayString);
 
     const container = document.getElementById('alarmsList');
     container.innerHTML = '';
 
-    if (!todayObj || !todayObj.alarms.length) {
+    if (!todayObj || !todayObj.times.length) {
         container.innerHTML = '<div class="alarm-row">No alarms scheduled for today.</div>';
         return;
     }
 
+    // Create Date objects for each alarm time today
+    const alarms = todayObj.times.map(timeStr => {
+        const [hh, mm] = timeStr.split(':');
+        return new Date(now.getFullYear(), now.getMonth(), now.getDate(), Number(hh), Number(mm));
+    });
+
     // Find the next upcoming alarm
     let soonestIdx = -1, soonestDiff = Infinity;
-    todayObj.alarms.forEach((a, idx) => {
-        const diff = a.date - now;
+    alarms.forEach((alarmTime, idx) => {
+        const diff = alarmTime - now;
         if (diff > 0 && diff < soonestDiff) {
             soonestDiff = diff;
             soonestIdx = idx;
         }
     });
 
-    todayObj.alarms.forEach((alarm, idx) => {
-        const diff = alarm.date - now;
+    alarms.forEach((alarmTime, idx) => {
+        const diff = alarmTime - now;
         let countdown = '';
         if (diff > 0) {
             const hours = Math.floor(diff / 3600000);
@@ -194,19 +149,19 @@ function renderAlarms(alarmsByDay) {
         }
         const row = document.createElement('div');
         row.className = 'alarm-row' + (idx === soonestIdx ? ' gold' : '');
-        row.innerHTML = `<span>${alarm.label}</span><span>${alarm.date.toLocaleTimeString()}<br><small>${countdown}</small></span>`;
+        row.innerHTML = `<span>Alarm at ${todayObj.times[idx]}</span><span>${alarmTime.toLocaleTimeString()}<br><small>${countdown}</small></span>`;
         container.appendChild(row);
     });
 }
 
-// Carousel (unchanged)
+// Carousel and message setup unchanged
+
 const imageFolder = 'msgImges/';
 const images = [
     'img1.jpg',
     'img2.jpg',
     'img3.jpg',
     'img4.jpg'
-    // Add more image file names as needed
 ];
 let carouselIdx = 0;
 function showCarouselImage() {
@@ -223,10 +178,6 @@ document.addEventListener('DOMContentLoaded', ()=>{
         showCarouselImage();
     };
     showCarouselImage();
-});
-
-// Bottom message (unchanged)
-document.addEventListener('DOMContentLoaded', ()=>{
     document.getElementById('bottomMessage').textContent = getRandomMessage();
 });
 
