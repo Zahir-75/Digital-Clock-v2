@@ -1,18 +1,14 @@
 // Helper to fetch and parse CSV
 async function fetchAlarms() {
-    const resp = await fetch('alarms.csv');
-    const text = await resp.text();
-    return text.split('\n')
-        .map(line => line.trim())
-        .filter(line => line && !line.startsWith('#'))
-        .map(line => {
-            const [dateStr, label] = line.split(',');
-            return {
-                time: new Date(dateStr),
-                label: label ? label.trim() : 'Alarm'
-            };
-        }).sort((a, b) => a.time - b.time);
-}
+    fetch('alarms.csv')
+      .then(response => response.text())
+      .then(text => {
+    const rows = text.trim().split('\n');
+    const header = rows[0].split(',');
+    const data = rows.slice(1).map(row => row.split(','));
+    // Now, data[i] = [Date, Day, Alarm1, ..., Alarm8]
+    // You can access alarms as data[i][2]...data[i][9]
+  });
 
 // Digital clock
 function updateDigitalClock() {
