@@ -1,16 +1,15 @@
-// Helper to fetch and parse the new alarms.csv format
+// Helper to fetch and parse the new alarms.csv format with DD/MM/YYYY date
 async function fetchAlarms() {
     const resp = await fetch('alarms.csv');
     const text = await resp.text();
     const lines = text.trim().split('\n');
     if (lines.length < 2) return [];
 
-    // Parse header
     // ["Date", "Day", "Alarm1", ...]
     return lines.slice(1).map(line => {
         const cols = line.split(',').map(col => col.trim());
         return {
-            date: cols[0], // "29-June-2025"
+            date: cols[0], // "29/06/2025"
             day: cols[1],  // "Sunday"
             times: cols.slice(2).filter(Boolean) // ["04:00", "10:00", ...]
         };
@@ -102,11 +101,8 @@ function drawAnalogClock() {
 // Render alarms for today
 function renderAlarms(alarmsByDay) {
     const now = new Date();
-    const months = [
-        "January","February","March","April","May","June","July",
-        "August","September","October","November","December"
-    ];
-    const todayString = `${now.getDate().toString().padStart(2, '0')}-${months[now.getMonth()]}-${now.getFullYear()}`;
+    // Format today's date as in the CSV (DD/MM/YYYY)
+    const todayString = `${now.getDate().toString().padStart(2, '0')}/${(now.getMonth()+1).toString().padStart(2, '0')}/${now.getFullYear()}`;
     const todayObj = alarmsByDay.find(row => row.date === todayString);
 
     const container = document.getElementById('alarmsList');
