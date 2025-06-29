@@ -101,7 +101,6 @@ function drawAnalogClock() {
 // Render alarms for today
 function renderAlarms(alarmsByDay) {
     const now = new Date();
-    // Format today's date as in the CSV (DD/MM/YYYY)
     const todayString = `${now.getDate().toString().padStart(2, '0')}/${(now.getMonth()+1).toString().padStart(2, '0')}/${now.getFullYear()}`;
     const todayObj = alarmsByDay.find(row => row.date === todayString);
 
@@ -113,24 +112,19 @@ function renderAlarms(alarmsByDay) {
         return;
     }
 
-    // Create Date objects for each alarm time today
-    const alarms = todayObj.times.map(timeStr => {
+    // Only take the first 7 alarms
+    const alarms = todayObj.times.slice(0, 7).map((timeStr, idx) => {
         const [hh, mm] = timeStr.split(':');
-        return new Date(now.getFullYear(), now.getMonth(), now.getDate(), Number(hh), Number(mm));
+        return {
+            time: timeStr,
+            dateObj: new Date(now.getFullYear(), now.getMonth(), now.getDate(), Number(hh), Number(mm)),
+            idx
+        };
     });
 
-    // Find the next upcoming alarm
-    let soonestIdx = -1, soonestDiff = Infinity;
-    alarms.forEach((alarmTime, idx) => {
-        const diff = alarmTime - now;
-        if (diff > 0 && diff < soonestDiff) {
-            soonestDiff = diff;
-            soonestIdx = idx;
-        }
-    });
-
-    alarms.forEach((alarmTime, idx) => {
-        const diff = alarmTime - now;
+    // Helper to generate alarm HTML with countdown
+    function alarmHtml(alarm) {
+        const diff = alarm.dateObj - now;
         let countdown = '';
         if (diff > 0) {
             const hours = Math.floor(diff / 3600000);
@@ -140,11 +134,50 @@ function renderAlarms(alarmsByDay) {
         } else {
             countdown = 'Passed';
         }
-        const row = document.createElement('div');
-        row.className = 'alarm-row' + (idx === soonestIdx ? ' gold' : '');
-        row.innerHTML = `<span>Alarm at ${todayObj.times[idx]}</span><span>${alarmTime.toLocaleTimeString()}<br><small>${countdown}</small></span>`;
-        container.appendChild(row);
+        return `<span>Alarm at ${alarm.time} <small>(${alarm.dateObj.toLocaleTimeString()})<br>${countdown}</small></span>`;
+    }
+
+    // Find soonest alarm (for optional highlight)
+    let soonestIdx = -1, soonestDiff = Infinity;
+    alarms.forEach((alarm, idx) => {
+        const diff = alarm.dateObj - now;
+        if (diff > 0 && diff < soonestDiff) {
+            soonestDiff = diff;
+            soonestIdx = idx;
+        }
     });
+
+    // Layout: [0|1], [2], [3|4], [5|6]
+    let html = '';
+    // First line: Alarm1 | Alarm2
+    if (alarms[0] || alarms[1]) {
+        html += `<div class="alarm-row${soonestIdx === 0 || soonestIdx === 1 ? ' gold' : ''}">`;
+        if (alarms[0]) html += alarmHtml(alarms[0]);
+        if (alarms[1]) html += " &nbsp;|&nbsp; " + alarmHtml(alarms[1]);
+        html += '</div>';
+    }
+    // Second line: Alarm3
+    if (alarms[2]) {
+        html += `<div class="alarm-row${soonestIdx === 2 ? ' gold' : ''}">`;
+        html += alarmHtml(alarms[2]);
+        html += '</div>';
+    }
+    // Third line: Alarm4 | Alarm5
+    if (alarms[3] || alarms[4]) {
+        html += `<div class="alarm-row${soonestIdx === 3 || soonestIdx === 4 ? ' gold' : ''}">`;
+        if (alarms[3]) html += alarmHtml(alarms[3]);
+        if (alarms[4]) html += " &nbsp;|&nbsp; " + alarmHtml(alarms[4]);
+        html += '</div>';
+    }
+    // Fourth line: Alarm6 | Alarm7
+    if (alarms[5] || alarms[6]) {
+        html += `<div class="alarm-row${soonestIdx === 5 || soonestIdx === 6 ? ' gold' : ''}">`;
+        if (alarms[5]) html += alarmHtml(alarms[5]);
+        if (alarms[6]) html += " &nbsp;|&nbsp; " + alarmHtml(alarms[6]);
+        html += '</div>';
+    }
+
+    container.innerHTML = html;
 }
 
 // Carousel and messages are unchanged
