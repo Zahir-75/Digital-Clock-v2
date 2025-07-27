@@ -1,22 +1,28 @@
 <!DOCTYPE html>
 <html lang="en">
+    
 <head>
     <meta charset="UTF-8">
     <title>Calendar with Alarms v2</title>
     <link rel="stylesheet" href="style.css">
 </head>
+
+    
 <body>
     <div class="main-container">
+        
         <div class="clock-container">
             <canvas id="analogClock" width="100" height="100"></canvas>
             <div id="digitalClock"></div>
         </div>
 
+        
         <div class="alarms-section">
             <h2>Upcoming Alarms</h2>
             <div id="alarmsList"></div>
         </div>
 
+        
         <div class="carousel-section">
             <div class="carousel" id="carousel">
                 <button class="carousel-btn left" id="carouselPrev">&#8592;</button>
@@ -25,7 +31,12 @@
             </div>
         </div>
     </div>
+
+
+    
     <div id="bottomMessage"></div>
+    
+    
     <script src="messages.js"></script>
     <script src="script.js"></script>
 </body>
